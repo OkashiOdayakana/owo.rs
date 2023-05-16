@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use owo_rs::{shorten, upload};
+use owo::{shorten, upload};
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Read};
 
