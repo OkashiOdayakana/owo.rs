@@ -44,7 +44,7 @@ fn main() {
 
             match upload(&cli.key, buf) {
                 Ok(i) => println!("{}", i),
-                Err(e) => println!("{}", e),
+                Err(e) => eprintln!("{}", e),
             }
         }
     }
