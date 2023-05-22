@@ -2,7 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use reqwest::blocking::multipart;
 use serde::{Deserialize, Serialize};
 const API_BASE: &str = "https://api.awau.moe";
-const USER_AGENT: &str = "WhatsThisClient (https://owo.codes/okashi/owo-rs, 0.3.0)";
+const USER_AGENT: &str = "WhatsThisClient (https://owo.codes/okashi/owo-rs, 0.3.1)";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct APIResponse {
@@ -52,11 +52,13 @@ pub fn shorten(key: &str, s_url: &str) -> Result<String> {
 /// # Arguments
 /// * `key` - A valid whats-th.is API token.
 ///
-/// * `in_file` - A file, expressed as a `Vec<u8>`
+/// * `in_file` - The file to be uploaded. Anything that implements std::io::Read should do.
 ///
 /// * `mime_type` - A valid mime type, e.g "image/png".
 ///
 /// * `file_name` - The desired upload file name.
+///
+/// * `result_url` - The vanity domain you wish to use.
 pub fn upload<
     R: std::io::Read + std::marker::Send + 'static,
     S: Into<String> + std::fmt::Display,
