@@ -1,8 +1,8 @@
+use anyhow::{anyhow, Context, Result};
 use reqwest::blocking::multipart;
 use serde::{Deserialize, Serialize};
-use std::error::Error;
 const API_BASE: &str = "https://api.awau.moe";
-const USER_AGENT: &str = "WhatsThisClient (https://owo.codes/okashi/owo-rs, 0.0.1)";
+const USER_AGENT: &str = "WhatsThisClient (https://owo.codes/okashi/owo-rs, 0.3.0)";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct APIResponse {
@@ -16,7 +16,7 @@ pub struct File {
     pub hash: String,
     pub name: String,
     pub url: String,
-    pub size: i64,
+    pub size: Option<i64>,
 }
 
 /// Use the whats-th.is API to shorten a link.
@@ -26,7 +26,7 @@ pub struct File {
 /// * `key` - A valid whats-th.is API token.
 ///
 /// * `s_url` - The URL to be shortened.
-pub fn shorten(key: &str, s_url: &str) -> Result<String, Box<dyn Error>> {
+pub fn shorten(key: &str, s_url: &str) -> Result<String> {
     let url = format!("{API_BASE}/shorten/polr");
 
     let client = reqwest::blocking::Client::new();
@@ -41,39 +41,44 @@ pub fn shorten(key: &str, s_url: &str) -> Result<String, Box<dyn Error>> {
 
     match resp.status() {
         reqwest::StatusCode::OK => Ok(resp.text()?),
-        reqwest::StatusCode::UNAUTHORIZED => Err("Invalid OwO token!".into()),
-        i => Err(format!("Received status code: {}", i).into()),
+        i => Err(anyhow!(i)),
     }
 }
 
-// Uploads a file with the whats-th.is API.
-//
-// TODO: Enable concurrent uploads with a single upload
-//
-// # Arguments
-// * `key` - A valid whats-th.is API token.
-//
-// * `in_file` - A file, expressed as a `Vec<u8>`
-pub fn upload(key: &str, in_file: Vec<u8>) -> Result<String, Box<dyn Error>> {
+/// Uploads a file with the whats-th.is API.
+///
+/// TODO: Enable concurrent uploads with a single upload
+///
+/// # Arguments
+/// * `key` - A valid whats-th.is API token.
+///
+/// * `in_file` - A file, expressed as a `Vec<u8>`
+///
+/// * `mime_type` - A valid mime type, e.g "image/png".
+///
+/// * `file_name` - The desired upload file name.
+pub fn upload<
+    R: std::io::Read + std::marker::Send + 'static,
+    S: Into<String> + std::fmt::Display,
+>(
+    key: &str,
+    in_file: R,
+    mime_type: S,
+    file_name: S,
+    result_url: S,
+) -> Result<String> {
+    let mime_type = mime_type.into();
+    let file_name = file_name.into();
+
     let url = format!("{API_BASE}/upload/pomf");
 
-    let kind = infer::get(&in_file);
-    let mime = match kind {
-        Some(i) => i.mime_type(),
-        None => "application/octet-stream",
-    };
-    let filename = match kind {
-        Some(i) => format!("owo.{}", i.extension()),
-        None => String::from("owo"),
-    };
-
-    let file_part = multipart::Part::bytes(in_file)
-        .file_name(filename)
-        .mime_str(mime)
+    let file_part = multipart::Part::reader(in_file)
+        .file_name(file_name)
+        .mime_str(&mime_type)
         .expect("Error creating Multiform Part!");
 
     let multi_form = multipart::Form::new()
-        .text("type", mime)
+        .text("type", mime_type)
         .part("files[]", file_part);
 
     let client = reqwest::blocking::Client::new();
@@ -82,14 +87,14 @@ pub fn upload(key: &str, in_file: Vec<u8>) -> Result<String, Box<dyn Error>> {
         .header(reqwest::header::AUTHORIZATION, key)
         .header(reqwest::header::USER_AGENT, USER_AGENT)
         .multipart(multi_form)
-        .send()?;
+        .send()
+        .context("Failed to get request")?;
 
     match resp.status() {
         reqwest::StatusCode::OK => match resp.json::<APIResponse>() {
-            Ok(i) => Ok(format!("https://owo.whats-th.is/{}", i.files[0].url)),
-            Err(_) => Err("Unable to parse JSON!".into()),
+            Ok(i) => Ok(format!("https://{}/{}", result_url, i.files[0].url)),
+            Err(e) => Err(anyhow!(e)),
         },
-        reqwest::StatusCode::UNAUTHORIZED => Err("Invalid OwO token!".into()),
-        i => Err(format!("Received status code: {}", i).into()),
+        i => Err(anyhow!(i)),
     }
 }
