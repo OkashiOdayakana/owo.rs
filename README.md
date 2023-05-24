@@ -11,7 +11,7 @@ Currently, proper config files are not supported yet,
 so the configuration options are managed via either command line flags, or environmental variables.
 
 ### Upload
-`OWO_KEY=KEY owo file.jpg`
+`OWO_KEY=KEY owo upload file.jpg`
 
 ### Shorten
 `OWO_KEY=KEY owo shorten https://google.com`
